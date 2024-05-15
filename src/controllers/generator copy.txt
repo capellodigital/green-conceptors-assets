@@ -1,0 +1,87 @@
+import fs from 'fs';
+import path from 'path';
+import sharp from 'sharp';
+import axios from 'axios';
+import { NextFunction, Request, Response } from 'express';
+
+interface Image {
+  id: string;
+  alt: string;
+  source: string;
+}
+
+interface ImageRequest {
+  directories: string[];
+  images: Image[];
+  formats: string[]; // Array of desired image formats
+  sizes: number[];   // Array of desired image sizes
+}
+
+export const ImageGenerator = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { directories, images, formats, sizes } = req.body as ImageRequest;
+
+    for (const image of images) {
+      await processImage(image, directories, formats, sizes);
+    }
+  
+    res.status(200).json('Images processed successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+async function createDirectories(directories: string[], projectSlug: string): Promise<void> {
+  try {
+    const rootDirectory = path.join(__dirname, '..', '..', 'assets', ...directories);
+    const projectDirectory = path.join(rootDirectory, projectSlug);
+
+    if (!fs.existsSync(rootDirectory)) {
+      fs.mkdirSync(rootDirectory, { recursive: true });
+    }
+
+    if (!fs.existsSync(projectDirectory)) {
+      fs.mkdirSync(projectDirectory);
+    }
+  } catch (error) {
+    console.error('Error creating directories:', error);
+    throw error;
+  }
+}
+
+async function processImage(image: Image, customDirectoryName: string[], formats: string[], sizes: number[]): Promise<void> {
+  try {
+    await createDirectories(customDirectoryName, image.id);
+
+    // Create directory for the original image
+    const rootDirectory = path.join(__dirname, '..', '..', 'assets', ...customDirectoryName);
+    const imageDirectory = path.join(rootDirectory, image.id, 'original');
+    const response = await axios.get(image.source, { responseType: 'arraybuffer' });
+    const imageBuffer = Buffer.from(response.data, 'binary');
+
+    // Save original image
+    fs.writeFileSync(path.join(imageDirectory, `${image.alt}_${image.id}.jpg`), imageBuffer);
+
+    // Generate images in desired formats and sizes
+    for (const size of sizes) {
+      const resizedImageBuffer = await sharp(imageBuffer)
+        .resize(size)
+        .toBuffer();
+
+      const sizeDirectoryName = `${size}px`;
+      const sizeDirectory = path.join(rootDirectory, image.id, sizeDirectoryName);
+      
+      if (!fs.existsSync(sizeDirectory)) {
+        fs.mkdirSync(sizeDirectory, { recursive: true });
+      }
+
+      for (const format of formats) {
+        fs.writeFileSync(path.join(sizeDirectory, `${image.alt}_${image.id}.${format}`), resizedImageBuffer);
+      }
+    }
+
+    console.log(`Processed image: ${image.id}`);
+  } catch (error) {
+    console.error('Error processing image:', error);
+  }
+};
