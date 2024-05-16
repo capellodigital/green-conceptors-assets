@@ -5,7 +5,9 @@ import axios from 'axios';
 import map from 'lodash/map';
 import { NextFunction, Request, Response } from 'express';
 
-import Json from '../../backup/products-and-services.json';
+import Json from '../../backup/projects.json';
+import { filter } from 'lodash';
+
 interface Image {
   key: string;
   name: string;
@@ -36,7 +38,7 @@ interface ImagePaths {
 }
 
 function generateCDN(base: string[], itemSlug: string): ImagePaths {
-  const directories = ['assets', 'products-and-services', itemSlug, 'gallery'];
+  const directories = ['assets', 'projects', itemSlug, 'gallery'];
   const cdn = [...base, ...directories].join('/');
   return { cdn, directories };
 }
@@ -49,31 +51,37 @@ export const ImageGenerator = async (
   try {
     const { formats, base } = req.body as ImageRequest;
     const converter = async () => {
-      const promises$ = map(Json.slice(8, 12), async (item$) => {
+      const promises$ = map(Json.slice(0, 5), async (item$) => {
         const content$ = map(item$.content, (contentItem, index) => {
           const imageText = contentItem.image
             ? `![Page Image ${index}](${contentItem.image})`
             : '';
           return `${contentItem.content}\n${imageText}\n`;
         }).join('\n\n');
-        const gallery$ = map(item$.gallery, async (item$$, index) => {
-          const { cdn, directories } = generateCDN(base, item$.slug);
-          const payload = {
-            cdn,
-            formats,
-            directories,
-            image: {
-              key: `image-${index + 1}`,
-              name: item$$?.name || item$?.title,
-              alt: item$$.alt,
-              source: item$$?.source,
-            },
-          };
-          const result = await processImage(payload);
-          return result;
-        });
-        const gallery = await Promise.all(gallery$);
-        const flatGallery = gallery.slice().flat(1);
+        const gallery$ =
+          item$?.gallery?.length > 0
+            ? map(filter(item$.gallery, 'source'), async (item$$, index) => {
+                const { cdn, directories } = generateCDN(base, item$.slug);
+                const payload = {
+                  cdn,
+                  formats,
+                  directories,
+                  image: {
+                    key: `image-${index + 1}`,
+                    name: item$$?.name || item$?.title,
+                    alt: item$$.alt,
+                    source: item$$?.source,
+                  },
+                };
+                const result = await processImage(payload);
+                return result;
+              })
+            : [[]];
+
+        console.log(item$.gallery);
+        const gallery =
+          item$?.gallery?.length > 0 ? await Promise.all(gallery$) : [[]];
+        const flatGallery = gallery?.slice().flat(1);
         const data = {
           ...item$,
           image: flatGallery[0]?.original,

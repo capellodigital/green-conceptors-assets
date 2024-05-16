@@ -1387,16 +1387,7 @@
         "newsId": "d1a42730-1137-473d-8cd4-a954dc9b42de",
         "pageId": null
       },
-      {
-        "id": "8a4d13c0-11f3-4c35-bd12-eda752a187e6",
-        "name": "",
-        "alt": "",
-        "source": "https://www.youtube.com/embed/XQvmOUDp-To?autoplay=1&rel=0",
-        "projectId": null,
-        "servicesId": null,
-        "newsId": "d1a42730-1137-473d-8cd4-a954dc9b42de",
-        "pageId": null
-      },
+
       {
         "id": "541dd491-d354-4d0f-bb39-5a6b25da0ba0",
         "name": "",
@@ -2059,18 +2050,7 @@
         "newsId": "ba783ae9-9c48-486c-b74b-57a501f21495"
       }
     ],
-    "gallery": [
-      {
-        "id": "69c1b1a6-bf57-451f-9458-e886cff62692",
-        "name": "",
-        "alt": "",
-        "source": "",
-        "projectId": null,
-        "servicesId": null,
-        "newsId": "ba783ae9-9c48-486c-b74b-57a501f21495",
-        "pageId": null
-      }
-    ],
+    "gallery": [],
     "metadata": {
       "id": "893a857d-01fc-429e-baed-75548b7e2323",
       "title": "",
@@ -2102,18 +2082,7 @@
         "newsId": "c9adc99c-4e89-490b-b7d1-a7a9b4587efa"
       }
     ],
-    "gallery": [
-      {
-        "id": "c827579d-473b-43ae-baed-554907788107",
-        "name": "",
-        "alt": "",
-        "source": "",
-        "projectId": null,
-        "servicesId": null,
-        "newsId": "c9adc99c-4e89-490b-b7d1-a7a9b4587efa",
-        "pageId": null
-      }
-    ],
+    "gallery": [],
     "metadata": {
       "id": "c2df8ea1-d69e-442d-822f-ba80a1ed7e16",
       "title": "",
