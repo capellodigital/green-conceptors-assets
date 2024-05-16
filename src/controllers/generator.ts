@@ -36,8 +36,8 @@ interface ImagePaths {
 }
 
 function generateCDN(base: string[], itemSlug: string): ImagePaths {
-  const cdn = [...base, 'products-and-services', itemSlug, 'gallery'].join('/');
   const directories = ['assets', 'products-and-services', itemSlug, 'gallery'];
+  const cdn = [...base, ...directories].join('/');
   return { cdn, directories };
 }
 
@@ -47,13 +47,16 @@ export const ImageGenerator = async (
   next: NextFunction
 ) => {
   try {
-    const { directories, images, formats, base } = req.body as ImageRequest;
-    // const BASE_CDN_URL = [...base, ...directories];
-    // const processedImages: ProcessedImage[] = [];
-
+    const { formats, base } = req.body as ImageRequest;
     const converter = async () => {
-      const promises$ = map(Json.slice(0, 1), async (item$) => {
-        const promises$$ = map(item$.gallery, async (item$$, index) => {
+      const promises$ = map(Json.slice(8, 12), async (item$) => {
+        const content$ = map(item$.content, (contentItem, index) => {
+          const imageText = contentItem.image
+            ? `![Page Image ${index}](${contentItem.image})`
+            : '';
+          return `${contentItem.content}\n${imageText}\n`;
+        }).join('\n\n');
+        const gallery$ = map(item$.gallery, async (item$$, index) => {
           const { cdn, directories } = generateCDN(base, item$.slug);
           const payload = {
             cdn,
@@ -69,10 +72,18 @@ export const ImageGenerator = async (
           const result = await processImage(payload);
           return result;
         });
-        const gallery = await Promise.all(promises$$);
+        const gallery = await Promise.all(gallery$);
+        const flatGallery = gallery.slice().flat(1);
         const data = {
           ...item$,
-          gallery: gallery.slice().flat(1),
+          image: flatGallery[0]?.original,
+          gallery: flatGallery,
+          content: content$,
+          metadata: {
+            title: item$.metadata.title,
+            description: item$.metadata.description,
+            keywords: item$.metadata.keywords,
+          },
         };
         return data;
       });
@@ -81,7 +92,7 @@ export const ImageGenerator = async (
     };
 
     const convertedImages = await converter();
-    console.log(convertedImages);
+
     res.status(200).json(convertedImages);
   } catch (error) {
     next(error);
