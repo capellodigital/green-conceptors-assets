@@ -2,9 +2,13 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import axios from 'axios';
+import map from 'lodash/map';
 import { NextFunction, Request, Response } from 'express';
 
+import Json from '../../backup/products-and-services.json';
 interface Image {
+  key: string;
+  name: string;
   alt: string;
   source: string;
 }
@@ -26,9 +30,16 @@ interface ProcessedImage {
   small: string;
   original: string;
 }
+interface ImagePaths {
+  cdn: string;
+  directories: string[];
+}
 
-// https://cdn.statically.io/gh/:user/:repo/:tag/:file
-// capellodigital/green-conceptors-assets/main
+function generateCDN(base: string[], itemSlug: string): ImagePaths {
+  const cdn = [...base, 'products-and-services', itemSlug, 'gallery'].join('/');
+  const directories = ['assets', 'products-and-services', itemSlug, 'gallery'];
+  return { cdn, directories };
+}
 
 export const ImageGenerator = async (
   req: Request,
@@ -37,18 +48,41 @@ export const ImageGenerator = async (
 ) => {
   try {
     const { directories, images, formats, base } = req.body as ImageRequest;
-    const BASE_CDN_URL = [...base, ...directories];
-    const processedImages: ProcessedImage[] = [];
-    for (const image of images) {
-      const result = await processImage({
-        cdn: BASE_CDN_URL.join('/'),
-        image,
-        directories,
-        formats,
+    // const BASE_CDN_URL = [...base, ...directories];
+    // const processedImages: ProcessedImage[] = [];
+
+    const converter = async () => {
+      const promises$ = map(Json.slice(0, 1), async (item$) => {
+        const promises$$ = map(item$.gallery, async (item$$, index) => {
+          const { cdn, directories } = generateCDN(base, item$.slug);
+          const payload = {
+            cdn,
+            formats,
+            directories,
+            image: {
+              key: `image-${index + 1}`,
+              name: item$$?.name || item$?.title,
+              alt: item$$.alt,
+              source: item$$?.source,
+            },
+          };
+          const result = await processImage(payload);
+          return result;
+        });
+        const gallery = await Promise.all(promises$$);
+        const data = {
+          ...item$,
+          gallery: gallery.slice().flat(1),
+        };
+        return data;
       });
-      processedImages.push(result);
-    }
-    res.status(200).json(processedImages.slice().flat());
+
+      return Promise.all(promises$);
+    };
+
+    const convertedImages = await converter();
+    console.log(convertedImages);
+    res.status(200).json(convertedImages);
   } catch (error) {
     next(error);
   }
@@ -75,6 +109,7 @@ async function processImage({
 }: Payload): Promise<ProcessedImage[]> {
   try {
     await createDirectories(directories);
+    const { key } = image;
     // Create directory for the image
     const rootDirectory = path.join(__dirname, '..', '..', ...directories);
     const imageDirectory = rootDirectory;
@@ -83,27 +118,27 @@ async function processImage({
     });
     const imageBuffer = Buffer.from(response.data, 'binary');
     // Save original image
-    fs.writeFileSync(
-      path.join(imageDirectory, `${image.alt}.jpg`),
-      imageBuffer
+    fs.writeFileSync(path.join(imageDirectory, `${key}.jpg`), imageBuffer);
+
+    // Use lodash map to iterate asynchronously over formats
+    const convertedImages = await Promise.all(
+      map(formats, async (format) => {
+        await sharp(imageBuffer)
+          .toFormat(format as any)
+          .toFile(path.join(imageDirectory, `${key}.${format}`));
+        return {
+          name: image.name,
+          alt: image.alt,
+          small: cdn + `/${key}.${format}`,
+          original: cdn + `/${key}.jpg`,
+        };
+      })
     );
-    const convertedImages: ProcessedImage[] = [];
-
-    for (const format of formats) {
-      await sharp(imageBuffer)
-        // @ts-expect-error
-        .toFormat(format as sharp.FormatEnum) // Convert to desired format
-        .toFile(path.join(imageDirectory, `${image.alt}.${format}`));
-
-      convertedImages.push({
-        alt: image.alt,
-        small: cdn + `/${image.alt}.${format}`,
-        original: cdn + `/${image.alt}.${format}`,
-      });
-    }
 
     return convertedImages;
   } catch (error) {
-    return error;
+    // If an error occurs, you should handle it appropriately
+    console.error('Error processing image:', error);
+    throw error;
   }
 }
