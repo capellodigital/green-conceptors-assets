@@ -51,7 +51,7 @@ export const ImageGenerator = async (
   try {
     const { formats, base } = req.body as ImageRequest;
     const converter = async () => {
-      const promises$ = map(Json.slice(5, 10), async (item$) => {
+      const promises$ = map(Json.slice(15, 20), async (item$) => {
         const content$ = map(item$.content, (contentItem, index) => {
           const imageText = contentItem.image
             ? `![Page Image ${index}](${contentItem.image})`
