@@ -3,10 +3,9 @@ import path from 'path';
 import sharp from 'sharp';
 import axios from 'axios';
 import map from 'lodash/map';
-import { NextFunction, Request, Response } from 'express';
-
-import Json from '../../backup/projects.json';
 import { filter } from 'lodash';
+import Json from '../../backup/projects.json';
+import { NextFunction, Request, Response } from 'express';
 
 interface Image {
   key: string;
