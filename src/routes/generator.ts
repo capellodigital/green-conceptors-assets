@@ -1,7 +1,12 @@
 import { Router } from 'express';
-import { ImageGenerator } from '@/controllers/generator';
+import {
+  ImageArrayGenerator,
+  PageImageGenerator,
+  SingalImageGenerator,
+} from '@/controllers/generator';
 
 const router = Router();
-// router.get('/', ImageGenerator);
-router.post('/', ImageGenerator);
+router.post('/page', PageImageGenerator);
+router.post('/array', ImageArrayGenerator);
+// router.post('/singal', SingalImageGenerator);
 export default router;

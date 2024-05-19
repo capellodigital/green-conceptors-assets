@@ -6,6 +6,7 @@ import map from 'lodash/map';
 import { filter } from 'lodash';
 import Json from '../../backup/projects.json';
 import { NextFunction, Request, Response } from 'express';
+import Mime from '@/utils/mime';
 
 interface Image {
   key: string;
@@ -19,6 +20,7 @@ interface ImageRequest {
   images: Image[];
   base: string[];
   formats: string[];
+  url: string;
 }
 interface Payload {
   cdn: string;
@@ -42,7 +44,7 @@ function generateCDN(base: string[], itemSlug: string): ImagePaths {
   return { cdn, directories };
 }
 
-export const ImageGenerator = async (
+export const PageImageGenerator = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -50,7 +52,7 @@ export const ImageGenerator = async (
   try {
     const { formats, base } = req.body as ImageRequest;
     const converter = async () => {
-      const promises$ = map(Json.slice(15, 20), async (item$) => {
+      const promises$ = map(Json, async (item$) => {
         const content$ = map(item$.content, (contentItem, index) => {
           const imageText = contentItem.image
             ? `![Page Image ${index}](${contentItem.image})`
@@ -77,7 +79,6 @@ export const ImageGenerator = async (
               })
             : [[]];
 
-        console.log(item$.gallery);
         const gallery =
           item$?.gallery?.length > 0 ? await Promise.all(gallery$) : [[]];
         const flatGallery = gallery?.slice().flat(1);
@@ -106,6 +107,63 @@ export const ImageGenerator = async (
   }
 };
 
+export const ImageArrayGenerator = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { formats, base, images, directories } = req.body as ImageRequest;
+    const filteredImages = filter(images, 'source');
+    const data = await Promise.all(
+      map(filteredImages, async (item$$, index) => {
+        const cdn = [...base, ...directories].join('/');
+        const payload = {
+          cdn,
+          formats,
+          directories,
+          image: {
+            key: `image-${index + 1}`,
+            name: item$$?.name,
+            alt: item$$.alt,
+            source: item$$?.source,
+          },
+        };
+        const result = await processImage(payload);
+        return result;
+      })
+    );
+    res.status(200).json(data.slice().flat());
+  } catch (error) {
+    next(error);
+  }
+};
+export const SingalImageGenerator = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { formats, base, url, directories } = req.body as ImageRequest;
+    const cdn = [...base, ...directories].join('/');
+    const payload = {
+      cdn,
+      formats,
+      directories,
+      image: {
+        key: `image-${3}`,
+        name: 'Page Image',
+        alt: 'About Page Image',
+        source: url,
+      },
+    };
+    const result = await processImage(payload);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 async function createDirectories(directories: string[]): Promise<void> {
   try {
     const rootDirectory = path.join(__dirname, '..', '..', ...directories);
@@ -119,6 +177,7 @@ async function createDirectories(directories: string[]): Promise<void> {
   }
 }
 
+const mime = new Mime();
 async function processImage({
   cdn,
   image,
@@ -134,21 +193,32 @@ async function processImage({
     const response = await axios.get(image.source, {
       responseType: 'arraybuffer',
     });
+
     const imageBuffer = Buffer.from(response.data, 'binary');
+    const contentType = response.headers['content-type'];
+    // Function to get file extension from MIME type using regex
+    function getExtension(mimeType: string) {
+      const match = mimeType.match(/image\/(jpeg|jpg|png|gif|bmp|webp)/);
+      return match ? `${match[1]}` : '';
+    }
+    const extension = getExtension(contentType);
     // Save original image
-    fs.writeFileSync(path.join(imageDirectory, `${key}.jpg`), imageBuffer);
+    fs.writeFileSync(
+      path.join(imageDirectory, `${key}.${extension}`),
+      imageBuffer
+    );
 
     // Use lodash map to iterate asynchronously over formats
     const convertedImages = await Promise.all(
       map(formats, async (format) => {
-        await sharp(imageBuffer)
+        await sharp(imageBuffer, {})
           .toFormat(format as any)
           .toFile(path.join(imageDirectory, `${key}.${format}`));
         return {
           name: image.name,
           alt: image.alt,
           small: cdn + `/${key}.${format}`,
-          original: cdn + `/${key}.jpg`,
+          original: cdn + `/${key}.${extension}`,
         };
       })
     );

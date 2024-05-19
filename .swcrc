@@ -13,7 +13,7 @@
     "target": "es2017",
     "externalHelpers": false,
     "keepClassNames": true,
-    "loose": false,
+    "loose": true,
     "minify": {
       "compress": true,
       "mangle": true
@@ -24,9 +24,6 @@
       "@config": ["config"],
       "@controllers/*": ["controllers/*"],
       "@databases": ["databases"],
-      "@dtos/*": ["dtos/*"],
-      "@exceptions/*": ["exceptions/*"],
-      "@interfaces/*": ["interfaces/*"],
       "@middlewares/*": ["middlewares/*"],
       "@models/*": ["models/*"],
       "@routes/*": ["routes/*"],
