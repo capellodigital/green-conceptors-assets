@@ -7,6 +7,7 @@ import { filter } from 'lodash';
 import Json from '../../backup/projects.json';
 import { NextFunction, Request, Response } from 'express';
 import Mime from '@/utils/mime';
+import slugify from 'slugify';
 
 interface Image {
   key: string;
@@ -18,6 +19,7 @@ interface Image {
 interface ImageRequest {
   directories: string[];
   images: Image[];
+  image?: Image;
   base: string[];
   formats: string[];
   url: string;
@@ -144,17 +146,21 @@ export const SingalImageGenerator = async (
   next: NextFunction
 ) => {
   try {
-    const { formats, base, url, directories } = req.body as ImageRequest;
+    const { formats, base, directories, image } = req.body as ImageRequest;
     const cdn = [...base, ...directories].join('/');
     const payload = {
       cdn,
       formats,
       directories,
       image: {
-        key: `image-${3}`,
-        name: 'Page Image',
-        alt: 'About Page Image',
-        source: url,
+        key: slugify(image.name, {
+          lower: true,
+          strict: true,
+          trim: true,
+        }),
+        name: image.name,
+        alt: image.alt,
+        source: image.source,
       },
     };
     const result = await processImage(payload);

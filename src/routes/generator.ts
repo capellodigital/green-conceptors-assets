@@ -8,5 +8,5 @@ import {
 const router = Router();
 router.post('/page', PageImageGenerator);
 router.post('/array', ImageArrayGenerator);
-// router.post('/singal', SingalImageGenerator);
+router.post('/singal', SingalImageGenerator);
 export default router;
