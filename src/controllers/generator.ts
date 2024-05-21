@@ -159,7 +159,7 @@ export const SingalImageGenerator = async (
           trim: true,
         }),
         name: image.name,
-        alt: image.alt,
+        alt: image.name,
         source: image.source,
       },
     };
