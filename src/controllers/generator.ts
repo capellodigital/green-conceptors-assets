@@ -164,7 +164,9 @@ export const SingalImageGenerator = async (
       },
     };
     const result = await processImage(payload);
-    res.status(200).json(result);
+    res
+      .status(200)
+      .json(result.map((data) => `![${data.alt}](${data.small})`).at(0));
   } catch (error) {
     next(error);
   }
